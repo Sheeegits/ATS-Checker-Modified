@@ -4,6 +4,7 @@ import os
 from PyPDF2 import PdfReader
 from dotenv import load_dotenv
 import json
+import time
 
 # Load environment variables
 load_dotenv()
@@ -11,16 +12,21 @@ load_dotenv()
 # Configure the generative AI API key
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_gemini_response(input_text):
-    model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content(input_text)
-    return response.text
+def get_gemini_response(input_text, timeout=30):
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        # Timeout handling to avoid long waits for the API response
+        response = model.generate_content(input_text, timeout=timeout)
+        return response.text
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 def input_pdf_text(uploaded_file):
+    # Using PyPDF2 for PDF parsing
     reader = PdfReader(uploaded_file)
     text = ""
-    for page in range(len(reader.pages)):
-        text += reader.pages[page].extract_text()
+    for page in reader.pages:
+        text += page.extract_text() if page.extract_text() else ""  # Handle cases with no extractable text
     return text
 
 # Helper to wrap long text
@@ -51,7 +57,11 @@ submit = st.button("Submit")
 
 if submit:
     if uploaded_file is not None:
+        # Track time taken for PDF extraction
+        start_time = time.time()
         text = input_pdf_text(uploaded_file)
+        st.text(f"PDF Extraction Time: {time.time() - start_time:.2f} seconds")
+        
         input_prompt = f"""
         Hey, act like a skilled and experienced application tracking system with a deep understanding 
         of the tech field, software engineering, data science, data analysis, and big data engineering.
@@ -64,8 +74,12 @@ if submit:
         I want the response in one single string with the structure:
         {{"JD Match":"%", "MissingKeywords":[], "Profile Summary":""}}
         """
+        
+        # Track time taken for API response
+        start_time = time.time()
         response = get_gemini_response(input_prompt)
-
+        st.text(f"API Response Time: {time.time() - start_time:.2f} seconds")
+        
         # Format response for better readability
         try:
             response_json = json.loads(response)
