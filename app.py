@@ -12,10 +12,10 @@ load_dotenv()
 # Configure the generative AI API key
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_gemini_response(input_text, timeout=30):
+def get_gemini_response(input_text):
     try:
         model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(input_text, timeout=timeout)
+        response = model.generate_content(input_text)
         
         # Log the raw response to check its structure
         st.text(f"Raw API Response: {response}")
