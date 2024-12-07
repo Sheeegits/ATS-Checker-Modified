@@ -15,14 +15,16 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 def get_gemini_response(input_text, timeout=30):
     try:
         model = genai.GenerativeModel('gemini-pro')
-        # Timeout handling to avoid long waits for the API response
         response = model.generate_content(input_text, timeout=timeout)
+        
+        # Log the raw response to check its structure
+        st.text(f"Raw API Response: {response}")
         return response.text
     except Exception as e:
+        st.text(f"Error in API request: {str(e)}")
         return f"Error: {str(e)}"
 
 def input_pdf_text(uploaded_file):
-    # Using PyPDF2 for PDF parsing
     reader = PdfReader(uploaded_file)
     text = ""
     for page in reader.pages:
@@ -80,17 +82,21 @@ if submit:
         response = get_gemini_response(input_prompt)
         st.text(f"API Response Time: {time.time() - start_time:.2f} seconds")
         
-        # Format response for better readability
-        try:
-            response_json = json.loads(response)
-            # Format Profile Summary with line breaks
-            if "Profile Summary" in response_json:
-                response_json["Profile Summary"] = format_paragraph(response_json["Profile Summary"])
-            st.subheader("JD Match Percentage")
-            st.text(response_json["JD Match"])
-            st.subheader("Missing Keywords")
-            st.text(", ".join(response_json["MissingKeywords"]))
-            st.subheader("Profile Summary")
-            st.text(response_json["Profile Summary"])  # Preserves line breaks
-        except json.JSONDecodeError:
-            st.text("Error processing response. Please check the input and try again.")
+        # Check if the response is valid
+        if response.startswith("Error:"):
+            st.text(f"API error: {response}")
+        else:
+            # Try parsing the response
+            try:
+                response_json = json.loads(response)
+                # Format Profile Summary with line breaks
+                if "Profile Summary" in response_json:
+                    response_json["Profile Summary"] = format_paragraph(response_json["Profile Summary"])
+                st.subheader("JD Match Percentage")
+                st.text(response_json["JD Match"])
+                st.subheader("Missing Keywords")
+                st.text(", ".join(response_json["MissingKeywords"]))
+                st.subheader("Profile Summary")
+                st.text(response_json["Profile Summary"])  # Preserves line breaks
+            except json.JSONDecodeError:
+                st.text(f"Error parsing the response. Response content: {response}")
